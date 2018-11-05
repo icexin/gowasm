@@ -15,7 +15,6 @@ func (r *Resolver) ResolveFunc(module, field string) exec.FunctionImport {
 		sp := frame.Locals[0]
 		return r.CallMethod(module, field, sp)
 	}
-
 }
 
 func (r *Resolver) ResolveGlobal(module, field string) int64 {
