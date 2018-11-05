@@ -7,7 +7,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -78,9 +77,13 @@ func run(fname string, verify bool) {
 	entryid := entry.Index
 
 	argc, argv := gowasm.PrepareArgs(vm.Memory(), flag.Args(), os.Environ())
-	log.SetOutput(ioutil.Discard)
-	_, err = vm.ExecCode(int64(entryid), uint64(argc), uint64(argv))
-	if err != nil {
-		panic(err)
+	for !rt.Exited() {
+		_, err = vm.ExecCode(int64(entryid), uint64(argc), uint64(argv))
+		if err != nil {
+			panic(err)
+		}
+		if !rt.Exited() {
+			rt.WaitTimer()
+		}
 	}
 }
