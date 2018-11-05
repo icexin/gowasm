@@ -17,17 +17,17 @@ There are currently two vm implementations, [life](https://github.perlin-network
 The compilation method is as follows
 
 ``` bash
-$ GOOS=js GOARCH=wasm go build your_code.go
+$ GOOS=js GOARCH=wasm go build tests/hello.go
 $ export GO111MODULE=on
 
 # For life vm
 $ go get github.com/icexin/gowasm/cmd/life
-$ life your_code
+$ life hello wasm
 
 
 # For wagon vm 
 $ go get github.com/icexin/gowasm/cmd/wagon
-$ wagon your_code
+$ wagon hello wasm
 ```
 
 How to custom package
