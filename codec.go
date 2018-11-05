@@ -1,0 +1,93 @@
+package gowasm
+
+import (
+	"bytes"
+	"encoding/binary"
+	"reflect"
+	"unsafe"
+)
+
+type Decoder struct {
+	mem []byte
+	buf *bytes.Buffer
+}
+
+func NewDecoder(mem []byte, offset int64) *Decoder {
+	return &Decoder{
+		mem: mem,
+		buf: bytes.NewBuffer(mem[offset:]),
+	}
+}
+
+func (r *Decoder) readSlice(v reflect.Value, t reflect.Type) {
+	var ptr, len, cap int64
+	binary.Read(r.buf, binary.LittleEndian, &ptr)
+	binary.Read(r.buf, binary.LittleEndian, &len)
+	binary.Read(r.buf, binary.LittleEndian, &cap)
+	if t.Elem().Kind() == reflect.Uint8 {
+		v.SetBytes(r.mem[ptr : ptr+len])
+		return
+	}
+	s := (*reflect.SliceHeader)(unsafe.Pointer(v.Addr().Pointer()))
+	s.Data = uintptr(unsafe.Pointer(&r.mem[ptr]))
+	s.Len = int(len)
+	s.Cap = int(cap)
+	// v.Set(reflect.MakeSlice(t, int(len), int(cap)))
+	// buf := bytes.NewBuffer(r.mem[ptr:])
+	// for i := 0; i < int(len); i++ {
+	// 	elem := v.Index(i)
+	// 	binary.Read(buf, binary.LittleEndian, elem.Addr().Interface())
+	// }
+}
+
+func (r *Decoder) readString() string {
+	var ptr, len int64
+	binary.Read(r.buf, binary.LittleEndian, &ptr)
+	binary.Read(r.buf, binary.LittleEndian, &len)
+	return string(r.mem[ptr : ptr+len])
+}
+
+func (r *Decoder) Decode(ref reflect.Value) {
+	elem := ref.Elem()
+	tp := elem.Type()
+	switch tp.Kind() {
+	case reflect.String:
+		elem.SetString(r.readString())
+	case reflect.Slice:
+		r.readSlice(elem, tp)
+	case reflect.Int32, reflect.Int64, reflect.Float64:
+		binary.Read(r.buf, binary.LittleEndian, ref.Interface())
+	default:
+		panic("bad arg type:" + tp.String())
+	}
+}
+
+func (r *Decoder) Offset() int64 {
+	return int64(len(r.mem) - r.buf.Len())
+}
+
+type Encoder struct {
+	buf *bytes.Buffer
+}
+
+func NewEncoder(mem []byte, offset int64) *Encoder {
+	return &Encoder{
+		buf: bytes.NewBuffer(mem[offset:offset]),
+	}
+}
+
+func (e *Encoder) Encode(v reflect.Value) {
+	t := v.Type()
+	switch t.Kind() {
+	case reflect.Bool:
+		vv := uint8(0)
+		if v.Bool() {
+			vv = 1
+		}
+		binary.Write(e.buf, binary.LittleEndian, vv)
+	case reflect.Int32, reflect.Int64, reflect.Float64:
+		binary.Write(e.buf, binary.LittleEndian, v.Interface())
+	default:
+		panic("bad return type:" + t.String())
+	}
+}
