@@ -23,13 +23,13 @@ $ GOOS=js GOARCH=wasm go build -o /tmp/hello tests/hello.go
 $ export GO111MODULE=on
 
 # For life vm
-$ cd cmd/life && go install
-$ life /tmp/hello wasm
+$ cd cmd/life && go build
+$ ./life /tmp/hello wasm
 
 
 # For wagon vm 
-$ cd cmd/wagon && go install
-$ wagon /tmp/hello wasm
+$ cd cmd/wagon && go build
+$ ./wagon /tmp/hello wasm
 ```
 
 How to custom package
