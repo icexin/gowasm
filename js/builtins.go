@@ -31,7 +31,17 @@ func Uint8Array(b []byte, offset int64, len int64) []byte {
 }
 
 type Memory struct {
-	Buffer []byte
+	memfunc func() []byte
+}
+
+func NewMemory(f func() []byte) *Memory {
+	return &Memory{
+		memfunc: f,
+	}
+}
+
+func (m *Memory) Get(name string) (interface{}, bool) {
+	return m.memfunc(), true
 }
 
 func init() {

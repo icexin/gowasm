@@ -15,15 +15,16 @@ type Getter interface {
 type VM struct {
 	valueid Ref
 	values  map[Ref]*Value
-	mem     Memory
+	mem     *Memory
 	Log     *log.Logger
 	//refs    map[reflect.Value]Ref
 }
 
-func NewVM() *VM {
+func NewVM(mem *Memory) *VM {
 	vm := &VM{
 		valueid: ValueGo + 1,
 		values:  make(map[Ref]*Value),
+		mem:     mem,
 	}
 	vm.initDefaultValue()
 	return vm
@@ -38,7 +39,7 @@ func (vm *VM) initDefaultValue() {
 	vm.values[ValueMemory] = &Value{
 		name:  "Memory",
 		ref:   ValueMemory,
-		value: reflect.ValueOf(&vm.mem),
+		value: reflect.ValueOf(vm.mem),
 	}
 
 	goruntime := &Value{
@@ -255,8 +256,4 @@ func (vm *VM) DebugStr(ref Ref) string {
 		return "<undefined>"
 	}
 	return fmt.Sprintf("<%s,%s,%s>", v.name, v.ref, v.value.Kind())
-}
-
-func (vm *VM) SetMemory(b []byte) {
-	vm.mem.Buffer = b
 }

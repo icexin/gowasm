@@ -2,11 +2,16 @@ package main
 
 import (
 	"reflect"
+	"unsafe"
 
 	"github.com/go-interpreter/wagon/exec"
 	"github.com/go-interpreter/wagon/wasm"
 	"github.com/icexin/gowasm"
 )
+
+type process struct {
+	vm *exec.VM
+}
 
 func gomodule(r *gowasm.Resolver) *wasm.Module {
 	methods := []string{
@@ -49,7 +54,8 @@ func gomodule(r *gowasm.Resolver) *wasm.Module {
 		fun := wasm.Function{
 			Sig: &sig,
 			Host: reflect.ValueOf(func(proc *exec.Process, sp int32) {
-				r.CallMethod("go", method, int64(sp))
+				p := (*process)(unsafe.Pointer(proc))
+				r.CallMethod("go", method, p.vm, int64(sp))
 			}),
 			Body: &wasm.FunctionBody{},
 		}

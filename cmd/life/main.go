@@ -6,10 +6,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/pprof"
 
 	"github.com/icexin/gowasm"
 	"github.com/perlin-network/life/exec"
 	"github.com/perlin-network/life/utils"
+)
+
+var (
+	cpuprofile = flag.String("cpuprofile", "cpu.pprof", "write cpu profile to file")
 )
 
 func run(vm *exec.VirtualMachine, entry int, argc, argv int64, rt *gowasm.Runtime) (int64, error) {
@@ -28,7 +33,6 @@ func run(vm *exec.VirtualMachine, entry int, argc, argv int64, rt *gowasm.Runtim
 			vm.Ignite(entry, argc, argv)
 		}
 	}
-
 	if vm.ExitError != nil {
 		return -1, utils.UnifyError(vm.ExitError)
 	}
@@ -38,6 +42,12 @@ func run(vm *exec.VirtualMachine, entry int, argc, argv int64, rt *gowasm.Runtim
 
 func main() {
 	flag.Parse()
+	if *cpuprofile != "" {
+		pf, _ := os.Create("cpu.profile")
+		defer pf.Close()
+		pprof.StartCPUProfile(pf)
+		defer pprof.StopCPUProfile()
+	}
 
 	// Read WebAssembly *.wasm file.
 	f, err := os.Open(flag.Arg(0))
@@ -49,22 +59,21 @@ func main() {
 	f.Close()
 	input := buf.Bytes()
 
-	r := &Resolver{gowasm.NewResolver()}
+	resolv := &Resolver{gowasm.NewResolver()}
 	rt := gowasm.NewRuntime()
-	rt.Register(r)
+	rt.Register(resolv)
 
 	// Instantiate a new WebAssembly VM with a few resolved imports.
 	vm, err := exec.NewVirtualMachine(input, exec.VMConfig{
-		DefaultMemoryPages: 12800,
+		DefaultMemoryPages: 128,
 		DefaultTableSize:   65536,
-	}, r, nil)
+	}, resolv, nil)
 
 	if err != nil {
 		panic(err)
 	}
 
-	r.SetMemory(vm.Memory)
-	rt.SetMemory(vm.Memory)
+	rt.SetVM(vmWrapper{vm})
 
 	// Get the function ID of the entry function to be executed.
 	entryID, ok := vm.GetFunctionExport("run")

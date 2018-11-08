@@ -19,8 +19,8 @@ var (
 // Runtime implements the runtime needed to run wasm code compiled by go toolchain
 type Runtime struct {
 	exited bool
-	mem    []byte
 	jsvm   *js.VM
+	wvm    VM // wasm vm
 
 	timeOrigin time.Time
 	timerid    int32
@@ -30,18 +30,21 @@ type Runtime struct {
 
 func NewRuntime() *Runtime {
 	rt := &Runtime{
-		jsvm:       js.NewVM(),
 		timeOrigin: time.Now(),
 		timers:     make(map[int32]*time.Timer),
 		wakeupch:   make(chan int32, 1000),
 	}
+
+	jsmem := js.NewMemory(func() []byte {
+		return rt.wvm.Memory()
+	})
+	rt.jsvm = js.NewVM(jsmem)
 	return rt
 }
 
-// SetMemory set vm's memory
-func (rt *Runtime) SetMemory(b []byte) {
-	rt.jsvm.SetMemory(b)
-	rt.mem = b
+// SetVM set wasm vm
+func (rt *Runtime) SetVM(vm VM) {
+	rt.wvm = vm
 }
 
 func (rt *Runtime) wasmExit(code int32) {
@@ -49,7 +52,7 @@ func (rt *Runtime) wasmExit(code int32) {
 }
 
 func (rt *Runtime) wasmWrite(fd int64, p int64, n int32) {
-	os.Stderr.Write(rt.mem[p : p+int64(n)])
+	os.Stderr.Write(rt.wvm.Memory()[p : p+int64(n)])
 }
 
 func (rt *Runtime) nanotime() int64 {
@@ -102,6 +105,7 @@ func (rt *Runtime) debug(v int64) {
 
 func (rt *Runtime) syscallJsValueGet(ref js.Ref, name string) js.Ref {
 	ret := rt.jsvm.Property(ref, name)
+	logger.Printf("get %s.%s = %s", rt.jsvm.DebugStr(ref), name, rt.jsvm.DebugStr(ret))
 	return ret
 }
 

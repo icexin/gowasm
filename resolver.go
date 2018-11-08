@@ -5,6 +5,10 @@ import (
 	"reflect"
 )
 
+type VM interface {
+	Memory() []byte
+}
+
 type Registry interface {
 	Register(module, field string, f interface{})
 }
@@ -15,7 +19,6 @@ type method struct {
 }
 
 type Resolver struct {
-	mem     []byte
 	modules map[string]*method
 }
 
@@ -23,10 +26,6 @@ func NewResolver() *Resolver {
 	return &Resolver{
 		modules: make(map[string]*method),
 	}
-}
-
-func (r *Resolver) SetMemory(b []byte) {
-	r.mem = b
 }
 
 func (r *Resolver) Register(module, field string, f interface{}) {
@@ -37,7 +36,7 @@ func (r *Resolver) Register(module, field string, f interface{}) {
 	}
 }
 
-func (r *Resolver) CallMethod(module, field string, sp int64) int64 {
+func (r *Resolver) CallMethod(module, field string, vm VM, sp int64) int64 {
 	if field != "runtime.wasmWrite" {
 		logger.Printf("call %s.%s", module, field)
 	}
@@ -45,11 +44,11 @@ func (r *Resolver) CallMethod(module, field string, sp int64) int64 {
 	if !ok {
 		panic(fmt.Sprintf("%s.%s not found", module, field))
 	}
-	return r.callMethod(m, sp)
+	return r.callMethod(m, vm, sp)
 }
 
-func (r *Resolver) callMethod(m *method, sp int64) int64 {
-	mem := r.mem
+func (r *Resolver) callMethod(m *method, vm VM, sp int64) int64 {
+	mem := vm.Memory()
 	dec := NewDecoder(mem, sp+8)
 	mtype := m.Type
 	args := []reflect.Value{}

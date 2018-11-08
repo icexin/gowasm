@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
 
 	"github.com/go-interpreter/wagon/exec"
 	"github.com/go-interpreter/wagon/validate"
@@ -16,15 +17,23 @@ import (
 	"github.com/icexin/gowasm"
 )
 
+var (
+	verbose    = flag.Bool("v", false, "enable/disable verbose mode")
+	verify     = flag.Bool("verify-module", false, "run module verification")
+	cpuprofile = flag.String("cpuprofile", "cpu.pprof", "write cpu profile to file")
+)
+
 func main() {
-	verbose := flag.Bool("v", false, "enable/disable verbose mode")
-	verify := flag.Bool("verify-module", false, "run module verification")
-
 	flag.Parse()
-
 	if flag.NArg() < 1 {
 		flag.Usage()
 		os.Exit(1)
+	}
+	if *cpuprofile != "" {
+		pf, _ := os.Create("cpu.profile")
+		defer pf.Close()
+		pprof.StartCPUProfile(pf)
+		defer pprof.StopCPUProfile()
 	}
 
 	wasm.SetDebugMode(*verbose)
@@ -70,7 +79,6 @@ func run(fname string, verify bool) {
 		log.Fatalf("could not create VM: %v", err)
 	}
 
-	r.SetMemory(vm.Memory())
 	rt.SetMemory(vm.Memory())
 
 	entry := m.Export.Entries["run"]
