@@ -4,6 +4,7 @@ var (
 	ErrNotfound        = NewException("EEXIS", "not found")
 	ErrNoSys           = NewException("ENOSYS", "not implemention")
 	ErrInvalidArgument = NewException("EINVAL", "invalid argument")
+	ErrUndefined       = NewException("EINVAL", "undefined")
 )
 
 type Exception struct {
@@ -44,7 +45,7 @@ func (m *Memory) Get(name string) (interface{}, bool) {
 	return m.memfunc(), true
 }
 
-func init() {
-	Register("Array", Array)
-	Register("Uint8Array", Uint8Array)
+func RegisterBuiltins(g *Global) {
+	g.Register("Array", Array)
+	g.Register("Uint8Array", Uint8Array)
 }

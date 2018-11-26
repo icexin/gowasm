@@ -7,6 +7,10 @@ import (
 	"github.com/icexin/gowasm/js"
 )
 
+var (
+	Sandbox = true
+)
+
 type Constants struct {
 	O_WRONLY int
 	O_RDWR   int
@@ -39,8 +43,10 @@ func NewFS() *FS {
 }
 
 func (f *FS) OpenSync(path string, flag, mode int64) (int, error) {
+	if Sandbox {
+		return 0, js.ErrNoSys
+	}
 	return syscall.Open(path, int(flag), uint32(mode))
-	return 0, js.ErrNoSys
 }
 
 type Stat struct {

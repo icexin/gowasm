@@ -13,19 +13,31 @@ type Getter interface {
 }
 
 type VM struct {
+	cfg     *VMConfig
 	valueid Ref
 	values  map[Ref]*Value
-	mem     *Memory
 	Log     *log.Logger
 	//refs    map[reflect.Value]Ref
 }
 
-func NewVM(mem *Memory) *VM {
+type VMConfig struct {
+	// the wasm Memory
+	Memory *Memory
+
+	// if nil, DefaultGlobal will be used
+	Global *Global
+}
+
+func NewVM(config *VMConfig) *VM {
 	vm := &VM{
+		cfg:     config,
 		valueid: ValueGo + 1,
 		values:  make(map[Ref]*Value),
-		mem:     mem,
 	}
+	if vm.cfg.Global == nil {
+		vm.cfg.Global = DefaultGlobal
+	}
+	RegisterBuiltins(vm.cfg.Global)
 	vm.initDefaultValue()
 	return vm
 }
@@ -39,7 +51,7 @@ func (vm *VM) initDefaultValue() {
 	vm.values[ValueMemory] = &Value{
 		name:  "Memory",
 		ref:   ValueMemory,
-		value: reflect.ValueOf(vm.mem),
+		value: reflect.ValueOf(vm.cfg.Memory),
 	}
 
 	goruntime := &Value{
@@ -48,12 +60,12 @@ func (vm *VM) initDefaultValue() {
 		value: reflect.ValueOf(struct{}{}),
 	}
 	vm.values[ValueGo] = goruntime
-	DefaultGlobal.Register("Go", goruntime)
+	vm.cfg.Global.Register("Go", goruntime)
 
 	vm.values[ValueGlobal] = &Value{
 		name:  "Gloabl",
 		ref:   ValueGlobal,
-		value: reflect.ValueOf(DefaultGlobal),
+		value: reflect.ValueOf(vm.cfg.Global),
 	}
 }
 
@@ -125,6 +137,9 @@ func (vm *VM) loadValue(ref Ref) (*Value, bool) {
 }
 
 func (vm *VM) Property(ref Ref, name string) Ref {
+	if ref == ValueUndefined {
+		return ValueUndefined
+	}
 	parent, ok := vm.values[ref]
 	if !ok {
 		// log.Printf("ref %x not found", ref)
@@ -203,6 +218,9 @@ func (vm *VM) call(name string, f reflect.Value, args []Ref) (ret Ref, err error
 }
 
 func (vm *VM) New(ref Ref, args []Ref) (Ref, error) {
+	if ref == ValueUndefined {
+		return ValueUndefined, ErrUndefined
+	}
 	v, ok := vm.loadValue(ref)
 	if !ok {
 		return 0, ErrNotfound
@@ -211,6 +229,9 @@ func (vm *VM) New(ref Ref, args []Ref) (Ref, error) {
 }
 
 func (vm *VM) Call(ref Ref, method string, args []Ref) (Ref, error) {
+	if ref == ValueUndefined {
+		return ValueUndefined, ErrUndefined
+	}
 	v, ok := vm.loadValue(ref)
 	if !ok {
 		return 0, ErrNotfound
@@ -223,6 +244,17 @@ func (vm *VM) Call(ref Ref, method string, args []Ref) (Ref, error) {
 	}
 	// log.Printf("call %s, args: %v", name, args)
 	return vm.call(name, f, args)
+}
+
+func (vm *VM) Invoke(ref Ref, args []Ref) (Ref, error) {
+	if ref == ValueUndefined {
+		return ValueUndefined, ErrUndefined
+	}
+	v, ok := vm.loadValue(ref)
+	if !ok {
+		return 0, ErrNotfound
+	}
+	return vm.call(v.name, v.value, args)
 }
 
 func (vm *VM) Store(x interface{}) Ref {

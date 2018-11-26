@@ -79,7 +79,7 @@ func run(fname string, verify bool) {
 		log.Fatalf("could not create VM: %v", err)
 	}
 
-	rt.SetMemory(vm.Memory())
+	rt.SetVM(vm)
 
 	entry := m.Export.Entries["run"]
 	entryid := entry.Index
